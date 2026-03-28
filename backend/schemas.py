@@ -70,6 +70,13 @@ class VenueResult(BaseModel):
     resy_url_token: str
 
 
+class VenueSearchPage(BaseModel):
+    results: list[VenueResult]
+    page: int
+    total_pages: int
+    total: int
+
+
 # ── Slot ─────────────────────────────────────────────────────────────────────
 
 class SlotResult(BaseModel):

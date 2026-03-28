@@ -1,21 +1,21 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from schemas import AuthStatus, SlotResult, VenueResult
+from schemas import AuthStatus, SlotResult, VenueResult, VenueSearchPage
 from services import resy_client
 
 router = APIRouter(prefix="/restaurants", tags=["restaurants"])
 
 
-@router.get("/search", response_model=list[VenueResult])
+@router.get("/search", response_model=VenueSearchPage)
 async def search_restaurants(
     q: str = Query(..., description="Restaurant name to search"),
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
 ):
     """Search Resy for venues matching the query."""
     try:
-        results = await resy_client.search_venues(q)
+        return await resy_client.search_venues(q, page=page)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Resy search failed: {exc}") from exc
-    return results
 
 
 @router.get("/slots", response_model=list[SlotResult])

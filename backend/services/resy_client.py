@@ -82,8 +82,8 @@ async def ensure_authenticated() -> ResyAuthState:
 
 # ── Venue Search ──────────────────────────────────────────────────────────────
 
-async def search_venues(query: str) -> list[dict]:
-    """Search Resy venues by name."""
+async def search_venues(query: str, page: int = 1) -> dict:
+    """Search Resy venues by name. page is 1-indexed."""
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{RESY_BASE}/3/venuesearch/search",
@@ -91,14 +91,16 @@ async def search_venues(query: str) -> list[dict]:
             data={
                 "struct_data": json.dumps({
                     "query": query,
-                    "per_page": 20,
+                    "per_page": 10,
+                    "page": page,
                 }),
             },
         )
         resp.raise_for_status()
         data = resp.json()
 
-    hits: list[dict[str, Any]] = data.get("search", {}).get("hits", [])
+    search = data.get("search", {})
+    hits: list[dict[str, Any]] = search.get("hits", [])
     results = []
     for hit in hits:
         neighborhood = hit.get("neighborhood", "")
@@ -113,7 +115,12 @@ async def search_venues(query: str) -> list[dict]:
                 "resy_url_token": hit.get("url_slug", ""),
             }
         )
-    return results
+    return {
+        "results": results,
+        "page": search.get("page", page),
+        "total_pages": search.get("nbPages", 1),
+        "total": search.get("nbHits", len(results)),
+    }
 
 
 # ── Slot Discovery ────────────────────────────────────────────────────────────

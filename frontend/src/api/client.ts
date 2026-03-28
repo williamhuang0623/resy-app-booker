@@ -59,6 +59,8 @@ export const datesApi = {
 // ── Restaurants ───────────────────────────────────────────────────────────────
 
 export const restaurantsApi = {
-  search: (q: string) =>
-    request<VenueResult[]>(`/restaurants/search?q=${encodeURIComponent(q)}`),
+  search: (q: string, page = 1) =>
+    request<{ results: VenueResult[]; page: number; total_pages: number; total: number }>(
+      `/restaurants/search?q=${encodeURIComponent(q)}&page=${page}`
+    ),
 };
