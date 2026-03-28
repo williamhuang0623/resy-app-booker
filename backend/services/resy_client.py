@@ -86,11 +86,12 @@ async def search_venues(query: str, lat: float = 40.7128, lon: float = -74.0060)
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{RESY_BASE}/3/venuesearch/search",
-            headers={**RESY_HEADERS, "Content-Type": "application/json"},
-            json={
+            headers=RESY_HEADERS,
+            data={
                 "query": query,
-                "geo": {"lat": lat, "long": lon},
-                "types": ["venue"],
+                "geo[lat]": lat,
+                "geo[long]": lon,
+                "per_page": 10,
             },
         )
         resp.raise_for_status()
