@@ -1,25 +1,27 @@
 import { useState } from "react";
 import { datesApi } from "../api/client";
-import type { CreateDatePayload, HitlistRestaurant } from "../types";
+import type { CreateDatePayload, DateEvent, HitlistRestaurant } from "../types";
 
 interface Props {
   hitlist: HitlistRestaurant[];
   onCreated: () => void;
   onClose: () => void;
+  editing?: DateEvent;  // present = edit mode
 }
 
-export default function CreateDateModal({ hitlist, onCreated, onClose }: Props) {
+export default function CreateDateModal({ hitlist, onCreated, onClose, editing }: Props) {
   const today = new Date().toISOString().slice(0, 10);
+  const isEdit = !!editing;
 
   const [form, setForm] = useState<CreateDatePayload>({
-    restaurant_id: hitlist[0]?.id ?? 0,
-    desired_date_start: today,
-    desired_date_end: today,
-    desired_time_start: "18:00",
-    desired_time_end: "21:00",
-    party_size: 2,
-    one_and_done: false,
-    notes: "",
+    restaurant_id: editing?.restaurant_id ?? hitlist[0]?.id ?? 0,
+    desired_date_start: editing?.desired_date_start ?? today,
+    desired_date_end: editing?.desired_date_end ?? today,
+    desired_time_start: editing?.desired_time_start ?? "18:00",
+    desired_time_end: editing?.desired_time_end ?? "21:00",
+    party_size: editing?.party_size ?? 2,
+    one_and_done: editing?.one_and_done ?? false,
+    notes: editing?.notes ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -33,11 +35,16 @@ export default function CreateDateModal({ hitlist, onCreated, onClose }: Props) 
     setSaving(true);
     setError("");
     try {
-      await datesApi.create(form);
+      if (isEdit) {
+        const { restaurant_id: _r, ...update } = form;
+        await datesApi.update(editing!.id, update);
+      } else {
+        await datesApi.create(form);
+      }
       onCreated();
       onClose();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to create date");
+      setError(err instanceof Error ? err.message : isEdit ? "Failed to update date" : "Failed to create date");
     } finally {
       setSaving(false);
     }
@@ -47,7 +54,7 @@ export default function CreateDateModal({ hitlist, onCreated, onClose }: Props) 
     <div style={overlayStyle} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div style={modalStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>New Date</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>{isEdit ? "Edit Date" : "New Date"}</h2>
           <button onClick={onClose} style={closeStyle}>✕</button>
         </div>
 
@@ -58,7 +65,8 @@ export default function CreateDateModal({ hitlist, onCreated, onClose }: Props) 
             <select
               value={form.restaurant_id}
               onChange={(e) => set("restaurant_id", Number(e.target.value))}
-              style={inputStyle}
+              style={{ ...inputStyle, opacity: isEdit ? 0.5 : 1 }}
+              disabled={isEdit}
               required
             >
               {hitlist.map((r) => (
@@ -164,7 +172,7 @@ export default function CreateDateModal({ hitlist, onCreated, onClose }: Props) 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
             <button type="button" onClick={onClose} style={cancelBtnStyle}>Cancel</button>
             <button type="submit" disabled={saving} style={submitBtnStyle}>
-              {saving ? "Creating…" : "Create Date"}
+              {saving ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? "Save Changes" : "Create Date")}
             </button>
           </div>
         </form>

@@ -3,13 +3,14 @@ import { useState } from "react";
 import { datesApi, hitlistApi } from "../api/client";
 import DateCard from "../components/DateCard";
 import CreateDateModal from "../components/CreateDateModal";
-import type { DateStatus } from "../types";
+import type { DateEvent, DateStatus } from "../types";
 
 const STATUS_ORDER: DateStatus[] = ["monitoring", "draft", "booked", "failed", "cancelled"];
 
 export default function DatesPage() {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  const [editingDate, setEditingDate] = useState<DateEvent | null>(null);
 
   const { data: dates = [], isLoading: datesLoading } = useQuery({
     queryKey: ["dates"],
@@ -133,6 +134,7 @@ export default function DatesPage() {
             onMonitor={(id) => monitorMutation.mutate(id)}
             onCancel={(id) => cancelMutation.mutate(id)}
             onDelete={(id) => deleteMutation.mutate(id)}
+            onEdit={(date) => setEditingDate(date)}
             busy={busy}
           />
         ))}
@@ -144,6 +146,16 @@ export default function DatesPage() {
           hitlist={hitlist}
           onCreated={() => qc.invalidateQueries({ queryKey: ["dates"] })}
           onClose={() => setShowCreate(false)}
+        />
+      )}
+
+      {/* Edit modal */}
+      {editingDate && (
+        <CreateDateModal
+          hitlist={hitlist}
+          editing={editingDate}
+          onCreated={() => qc.invalidateQueries({ queryKey: ["dates"] })}
+          onClose={() => setEditingDate(null)}
         />
       )}
     </div>

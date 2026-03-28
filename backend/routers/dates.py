@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import DateEvent, DateStatus, HitlistRestaurant
-from schemas import DateEventCreate, DateEventOut
+from schemas import DateEventCreate, DateEventOut, DateEventUpdate
 from services import resy_client
 
 router = APIRouter(prefix="/dates", tags=["dates"])
@@ -81,6 +81,47 @@ async def cancel_date(date_id: int, db: Session = Depends(get_db)):
 
     date_event.status = DateStatus.cancelled
     db.commit()
+    db.refresh(date_event)
+    return date_event
+
+
+@router.patch("/{date_id}", response_model=DateEventOut)
+async def update_date(date_id: int, payload: DateEventUpdate, db: Session = Depends(get_db)):
+    """
+    Update a Date's details. If it was monitoring, it is restarted automatically.
+    Booked Dates cannot be edited.
+    """
+    date_event = db.get(DateEvent, date_id)
+    if not date_event:
+        raise HTTPException(status_code=404, detail="Date not found")
+    if date_event.status == DateStatus.booked:
+        raise HTTPException(status_code=409, detail="Cannot edit a booked reservation")
+
+    was_monitoring = date_event.status == DateStatus.monitoring
+
+    for field, value in payload.model_dump().items():
+        setattr(date_event, field, value)
+
+    # Drop back to draft so the scheduler picks up new params cleanly
+    date_event.status = DateStatus.draft
+    date_event.resy_notify_id = None
+    db.commit()
+
+    # Restart monitoring if it was active before the edit
+    if was_monitoring:
+        try:
+            notify_id = await resy_client.set_notify(
+                venue_id=date_event.restaurant.venue_id,
+                party_size=date_event.party_size,
+                day=date_event.desired_date_start,
+            )
+            if notify_id:
+                date_event.resy_notify_id = notify_id
+        except Exception:
+            pass
+        date_event.status = DateStatus.monitoring
+        db.commit()
+
     db.refresh(date_event)
     return date_event
 

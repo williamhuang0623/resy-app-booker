@@ -5,6 +5,7 @@ interface Props {
   onMonitor: (id: number) => void;
   onCancel: (id: number) => void;
   onDelete: (id: number) => void;
+  onEdit: (date: DateEvent) => void;
   busy: boolean;
 }
 
@@ -43,7 +44,7 @@ function fmtSlot(slot: string) {
   });
 }
 
-export default function DateCard({ date, onMonitor, onCancel, onDelete, busy }: Props) {
+export default function DateCard({ date, onMonitor, onCancel, onDelete, onEdit, busy }: Props) {
   const cfg = STATUS_CONFIG[date.status];
 
   const sameDay = date.desired_date_start === date.desired_date_end;
@@ -127,7 +128,16 @@ export default function DateCard({ date, onMonitor, onCancel, onDelete, busy }: 
       )}
 
       {/* Actions */}
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {date.status !== "booked" && (
+          <button
+            onClick={() => onEdit(date)}
+            disabled={busy}
+            style={ghostBtnStyle}
+          >
+            Edit
+          </button>
+        )}
         {date.status === "draft" && (
           <button
             onClick={() => onMonitor(date.id)}

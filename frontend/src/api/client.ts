@@ -49,6 +49,12 @@ export const datesApi = {
   monitor: (id: number) =>
     request<DateEvent>(`/dates/${id}/monitor`, { method: "POST" }),
 
+  update: (id: number, payload: Omit<CreateDatePayload, "restaurant_id">) =>
+    request<DateEvent>(`/dates/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
   cancel: (id: number) =>
     request<DateEvent>(`/dates/${id}/cancel`, { method: "POST" }),
 

@@ -41,6 +41,16 @@ class DateEventCreate(BaseModel):
     notes: str = ""
 
 
+class DateEventUpdate(BaseModel):
+    desired_date_start: str
+    desired_date_end: str
+    desired_time_start: str
+    desired_time_end: str
+    party_size: int
+    one_and_done: bool
+    notes: str
+
+
 class DateEventOut(BaseModel):
     id: int
     restaurant_id: int
