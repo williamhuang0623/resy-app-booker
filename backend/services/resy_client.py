@@ -115,11 +115,13 @@ async def search_venues(query: str, page: int = 1) -> dict:
                 "resy_url_token": hit.get("url_slug", ""),
             }
         )
+    total = min(search.get("nbHits", len(results)), 100)
+    total_pages = min(search.get("nbPages", 1), 10)  # 10 pages × 10 per page = 100 max
     return {
         "results": results,
         "page": search.get("page", page),
-        "total_pages": search.get("nbPages", 1),
-        "total": search.get("nbHits", len(results)),
+        "total_pages": total_pages,
+        "total": total,
     }
 
 
