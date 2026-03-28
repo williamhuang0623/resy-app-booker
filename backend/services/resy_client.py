@@ -84,14 +84,16 @@ async def ensure_authenticated() -> ResyAuthState:
 async def search_venues(query: str, lat: float = 40.7128, lon: float = -74.0060) -> list[dict]:
     """Search Resy venues by name. Defaults to NYC coordinates."""
     async with httpx.AsyncClient() as client:
+        import json as _json
         resp = await client.post(
             f"{RESY_BASE}/3/venuesearch/search",
             headers=RESY_HEADERS,
             data={
-                "query": query,
-                "geo[lat]": lat,
-                "geo[long]": lon,
-                "per_page": 10,
+                "struct_data": _json.dumps({
+                    "query": query,
+                    "geo": {"lat": lat, "long": lon},
+                    "per_page": 10,
+                }),
             },
         )
         resp.raise_for_status()
