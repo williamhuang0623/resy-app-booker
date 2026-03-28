@@ -98,22 +98,19 @@ async def search_venues(query: str) -> list[dict]:
         resp.raise_for_status()
         data = resp.json()
 
-    logger.info("Resy search raw response: %s", data)
     hits: list[dict[str, Any]] = data.get("search", {}).get("hits", [])
     results = []
     for hit in hits:
-        venue = hit.get("venue", {})
-        locality = venue.get("location", {}).get("locality", "")
-        region = venue.get("location", {}).get("region", "")
+        neighborhood = hit.get("neighborhood", "")
+        locality = hit.get("locality", "")
+        location = ", ".join(p for p in [neighborhood, locality] if p)
         results.append(
             {
-                "venue_id": str(venue.get("id", {}).get("resy", "")),
-                "name": venue.get("name", ""),
-                "location": f"{locality}, {region}".strip(", "),
-                "cuisine": ", ".join(
-                    c.get("name", "") for c in venue.get("cuisine", [])
-                ),
-                "resy_url_token": venue.get("url_token", ""),
+                "venue_id": str(hit.get("id", {}).get("resy", "")),
+                "name": hit.get("name", ""),
+                "location": location,
+                "cuisine": ", ".join(hit.get("cuisine", [])),
+                "resy_url_token": hit.get("url_slug", ""),
             }
         )
     return results
