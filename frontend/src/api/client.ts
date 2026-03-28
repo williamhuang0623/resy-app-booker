@@ -5,7 +5,11 @@ import type {
   VenueResult,
 } from "../types";
 
-const BASE = "/api";
+// In production (Vercel), VITE_API_URL points to the Render backend.
+// In development, the Vite proxy handles /api → localhost:8000.
+const BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : "/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {

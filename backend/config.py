@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     resy_api_key: str = "VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5"
     poll_interval_seconds: int = 60
     database_url: str = "sqlite:///./resy_booker.db"
+    allowed_origins: str = "http://localhost:5173,http://localhost:3000"
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
