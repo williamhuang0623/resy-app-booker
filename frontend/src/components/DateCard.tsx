@@ -74,22 +74,27 @@ export default function DateCard({ date, onMonitor, onCancel, onDelete, busy }: 
           </div>
         </div>
 
-        <span
-          style={{
-            background: "transparent",
-            border: `1px solid ${cfg.color}`,
-            borderRadius: 20,
-            color: cfg.color,
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            padding: "3px 10px",
-            textTransform: "uppercase",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {cfg.label}
-        </span>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+          {date.one_and_done && (
+            <span style={oneAndDoneBadgeStyle}>1 &amp; done</span>
+          )}
+          <span
+            style={{
+              background: "transparent",
+              border: `1px solid ${cfg.color}`,
+              borderRadius: 20,
+              color: cfg.color,
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              padding: "3px 10px",
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {cfg.label}
+          </span>
+        </div>
       </div>
 
       {/* Details row */}
@@ -183,6 +188,19 @@ function Detail({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+const oneAndDoneBadgeStyle: React.CSSProperties = {
+  background: "#2a1a0e",
+  border: "1px solid #f0a04a",
+  borderRadius: 20,
+  color: "#f0a04a",
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: "0.06em",
+  padding: "3px 8px",
+  textTransform: "uppercase",
+  whiteSpace: "nowrap",
+};
 
 const primaryBtnStyle: React.CSSProperties = {
   background: "#ff6b4a",

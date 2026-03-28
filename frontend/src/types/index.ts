@@ -19,6 +19,7 @@ export interface DateEvent {
   desired_time_start: string;
   desired_time_end: string;
   party_size: number;
+  one_and_done: boolean;
   status: DateStatus;
   reservation_id: string | null;
   booked_slot: string | null;
@@ -43,5 +44,6 @@ export interface CreateDatePayload {
   desired_time_start: string;
   desired_time_end: string;
   party_size: number;
+  one_and_done: boolean;
   notes: string;
 }

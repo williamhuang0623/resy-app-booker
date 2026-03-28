@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
@@ -44,6 +44,7 @@ class DateEvent(Base):
     desired_time_start: Mapped[str] = mapped_column(String)   # HH:MM (24h)
     desired_time_end: Mapped[str] = mapped_column(String)     # HH:MM (24h)
     party_size: Mapped[int] = mapped_column(Integer, default=2)
+    one_and_done: Mapped[bool] = mapped_column(Boolean, default=False)
 
     status: Mapped[DateStatus] = mapped_column(
         Enum(DateStatus), default=DateStatus.draft

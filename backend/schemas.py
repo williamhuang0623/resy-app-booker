@@ -37,6 +37,7 @@ class DateEventCreate(BaseModel):
     desired_time_start: str   # HH:MM
     desired_time_end: str     # HH:MM
     party_size: int = 2
+    one_and_done: bool = False
     notes: str = ""
 
 
@@ -49,6 +50,7 @@ class DateEventOut(BaseModel):
     desired_time_start: str
     desired_time_end: str
     party_size: int
+    one_and_done: bool
     status: DateStatus
     reservation_id: Optional[str]
     booked_slot: Optional[str]

@@ -18,6 +18,7 @@ export default function CreateDateModal({ hitlist, onCreated, onClose }: Props) 
     desired_time_start: "18:00",
     desired_time_end: "21:00",
     party_size: 2,
+    one_and_done: false,
     notes: "",
   });
   const [saving, setSaving] = useState(false);
@@ -130,6 +131,22 @@ export default function CreateDateModal({ hitlist, onCreated, onClose }: Props) 
             />
           </div>
 
+          {/* One-and-done */}
+          <label style={toggleRowStyle}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>One-and-done</div>
+              <div style={{ color: "#666", fontSize: 12, marginTop: 2 }}>
+                If this books, automatically cancel all other monitoring Dates
+              </div>
+            </div>
+            <div
+              onClick={() => set("one_and_done", !form.one_and_done)}
+              style={toggleTrackStyle(form.one_and_done)}
+            >
+              <div style={toggleThumbStyle(form.one_and_done)} />
+            </div>
+          </label>
+
           {/* Notes */}
           <div style={fieldStyle}>
             <label style={labelStyle}>Notes (optional)</label>
@@ -217,3 +234,36 @@ const cancelBtnStyle: React.CSSProperties = {
   fontSize: 14,
   padding: "10px 18px",
 };
+
+const toggleRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 16,
+  background: "#111",
+  border: "1px solid #333",
+  borderRadius: 10,
+  cursor: "pointer",
+  padding: "12px 14px",
+};
+
+const toggleTrackStyle = (on: boolean): React.CSSProperties => ({
+  background: on ? "#ff6b4a" : "#2a2a2a",
+  borderRadius: 12,
+  cursor: "pointer",
+  flexShrink: 0,
+  height: 24,
+  position: "relative",
+  transition: "background 0.2s",
+  width: 44,
+});
+
+const toggleThumbStyle = (on: boolean): React.CSSProperties => ({
+  background: "#fff",
+  borderRadius: "50%",
+  height: 18,
+  left: on ? 22 : 3,
+  position: "absolute",
+  top: 3,
+  transition: "left 0.2s",
+  width: 18,
+});

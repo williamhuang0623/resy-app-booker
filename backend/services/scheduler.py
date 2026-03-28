@@ -77,6 +77,26 @@ async def _try_book_date(db: Session, date_event: DateEvent) -> bool:
     )
     date_event.booked_slot = chosen["time_slot"]
     date_event.booked_at = datetime.now(timezone.utc)
+
+    # One-and-done: cancel every other monitoring Date
+    if date_event.one_and_done:
+        others = (
+            db.query(DateEvent)
+            .filter(
+                DateEvent.status == DateStatus.monitoring,
+                DateEvent.id != date_event.id,
+            )
+            .all()
+        )
+        for other in others:
+            other.status = DateStatus.cancelled
+            logger.info(
+                "One-and-done: cancelled Date #%d (%s) after booking Date #%d",
+                other.id,
+                other.restaurant.name,
+                date_event.id,
+            )
+
     db.commit()
 
     logger.info(
