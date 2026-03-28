@@ -214,8 +214,8 @@ async def get_booking_token(config_id: str, day: str, party_size: int) -> Option
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{RESY_BASE}/3/details",
-            headers=auth.headers(),
-            data={
+            headers={**auth.headers(), "Content-Type": "application/json"},
+            json={
                 "commit": 1,
                 "config_id": config_id,
                 "day": day,
