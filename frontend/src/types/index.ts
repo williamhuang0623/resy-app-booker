@@ -1,5 +1,12 @@
 export type DateStatus = "draft" | "monitoring" | "booked" | "failed" | "cancelled";
 
+export interface User {
+  id: number;
+  email: string;
+  has_resy_credentials: boolean;
+  created_at: string;
+}
+
 export interface HitlistRestaurant {
   id: number;
   venue_id: string;

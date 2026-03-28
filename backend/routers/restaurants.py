@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from schemas import AuthStatus, SlotResult, VenueResult, VenueSearchPage
-from services import resy_client
+from schemas import SlotResult, VenueResult, VenueSearchPage
+from services import resy_client as rc
 
 router = APIRouter(prefix="/restaurants", tags=["restaurants"])
 
@@ -11,9 +11,9 @@ async def search_restaurants(
     q: str = Query(..., description="Restaurant name to search"),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
 ):
-    """Search Resy for venues matching the query."""
+    """Search Resy for venues by name. No auth required."""
     try:
-        return await resy_client.search_venues(q, page=page)
+        return await rc.search_venues(q, page=page)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Resy search failed: {exc}") from exc
 
@@ -27,8 +27,10 @@ async def get_slots(
     time_end: str = Query("23:59"),
 ):
     """Check live availability for a venue on a specific date."""
+    # Use a temporary client with the public key for unauthenticated slot lookup
+    client = rc.ResyClient("", "", rc._PUBLIC_API_KEY)
     try:
-        slots = await resy_client.find_slots(
+        slots = await client.find_slots(
             venue_id=venue_id,
             day=date,
             party_size=party_size,
@@ -38,28 +40,3 @@ async def get_slots(
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Resy slots failed: {exc}") from exc
     return slots
-
-
-@router.get("/auth/status", response_model=AuthStatus)
-async def auth_status():
-    """Check whether the app is authenticated with Resy."""
-    auth = resy_client.get_auth_state()
-    return AuthStatus(
-        authenticated=auth.is_authenticated,
-        email=auth.email or None,
-        payment_method_count=len(auth._payment_methods),
-    )
-
-
-@router.post("/auth/login", response_model=AuthStatus)
-async def login(email: str, password: str):
-    """Manually trigger Resy login (useful if env vars aren't set)."""
-    try:
-        auth = await resy_client.login(email, password)
-    except Exception as exc:
-        raise HTTPException(status_code=401, detail=f"Login failed: {exc}") from exc
-    return AuthStatus(
-        authenticated=auth.is_authenticated,
-        email=auth.email,
-        payment_method_count=len(auth._payment_methods),
-    )

@@ -2,29 +2,56 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import DateEvent, DateStatus, HitlistRestaurant
+from models import DateEvent, DateStatus, HitlistRestaurant, User
+from routers.auth import get_current_user
 from schemas import DateEventCreate, DateEventOut, DateEventUpdate
-from services import resy_client
+from services import resy_client as rc
+from services.security import safe_decrypt
 
 router = APIRouter(prefix="/dates", tags=["dates"])
 
 
+async def _get_notify_client(current_user: User):
+    """Return a ResyClient for the current user, or None if credentials missing."""
+    email = safe_decrypt(current_user.resy_email_enc)
+    password = safe_decrypt(current_user.resy_password_enc)
+    api_key = safe_decrypt(current_user.resy_api_key_enc) or rc._PUBLIC_API_KEY
+    if not email or not password:
+        return None
+    return rc.get_client_for_user(current_user.id, email, password, api_key)
+
+
 @router.get("/", response_model=list[DateEventOut])
-def list_dates(db: Session = Depends(get_db)):
+def list_dates(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     return (
         db.query(DateEvent)
+        .filter(DateEvent.user_id == current_user.id)
         .order_by(DateEvent.created_at.desc())
         .all()
     )
 
 
 @router.post("/", response_model=DateEventOut, status_code=201)
-def create_date(payload: DateEventCreate, db: Session = Depends(get_db)):
-    restaurant = db.get(HitlistRestaurant, payload.restaurant_id)
+def create_date(
+    payload: DateEventCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    restaurant = (
+        db.query(HitlistRestaurant)
+        .filter(
+            HitlistRestaurant.id == payload.restaurant_id,
+            HitlistRestaurant.user_id == current_user.id,
+        )
+        .first()
+    )
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found on hitlist")
 
-    date_event = DateEvent(**payload.model_dump())
+    date_event = DateEvent(**payload.model_dump(), user_id=current_user.id)
     db.add(date_event)
     db.commit()
     db.refresh(date_event)
@@ -32,12 +59,16 @@ def create_date(payload: DateEventCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/{date_id}/monitor", response_model=DateEventOut)
-async def start_monitoring(date_id: int, db: Session = Depends(get_db)):
-    """
-    Activate auto-booking for a Date.
-    Also registers Resy's native notify as a secondary signal.
-    """
-    date_event = db.get(DateEvent, date_id)
+async def start_monitoring(
+    date_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    date_event = (
+        db.query(DateEvent)
+        .filter(DateEvent.id == date_id, DateEvent.user_id == current_user.id)
+        .first()
+    )
     if not date_event:
         raise HTTPException(status_code=404, detail="Date not found")
     if date_event.status not in (DateStatus.draft, DateStatus.failed):
@@ -46,17 +77,18 @@ async def start_monitoring(date_id: int, db: Session = Depends(get_db)):
             detail=f"Cannot start monitoring from status '{date_event.status}'",
         )
 
-    # Register Resy notify for the start date
-    try:
-        notify_id = await resy_client.set_notify(
-            venue_id=date_event.restaurant.venue_id,
-            party_size=date_event.party_size,
-            day=date_event.desired_date_start,
-        )
-        if notify_id:
-            date_event.resy_notify_id = notify_id
-    except Exception:
-        pass  # notify is best-effort; don't block activation
+    client = await _get_notify_client(current_user)
+    if client:
+        try:
+            notify_id = await client.set_notify(
+                venue_id=date_event.restaurant.venue_id,
+                party_size=date_event.party_size,
+                day=date_event.desired_date_start,
+            )
+            if notify_id:
+                date_event.resy_notify_id = notify_id
+        except Exception:
+            pass
 
     date_event.status = DateStatus.monitoring
     db.commit()
@@ -65,19 +97,28 @@ async def start_monitoring(date_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{date_id}/cancel", response_model=DateEventOut)
-async def cancel_date(date_id: int, db: Session = Depends(get_db)):
-    date_event = db.get(DateEvent, date_id)
+async def cancel_date(
+    date_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    date_event = (
+        db.query(DateEvent)
+        .filter(DateEvent.id == date_id, DateEvent.user_id == current_user.id)
+        .first()
+    )
     if not date_event:
         raise HTTPException(status_code=404, detail="Date not found")
     if date_event.status == DateStatus.booked:
         raise HTTPException(status_code=409, detail="Cannot cancel a booked reservation here")
 
-    # Clean up Resy notify if registered
     if date_event.resy_notify_id:
-        try:
-            await resy_client.remove_notify(date_event.resy_notify_id)
-        except Exception:
-            pass
+        client = await _get_notify_client(current_user)
+        if client:
+            try:
+                await client.remove_notify(date_event.resy_notify_id)
+            except Exception:
+                pass
 
     date_event.status = DateStatus.cancelled
     db.commit()
@@ -86,12 +127,17 @@ async def cancel_date(date_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{date_id}", response_model=DateEventOut)
-async def update_date(date_id: int, payload: DateEventUpdate, db: Session = Depends(get_db)):
-    """
-    Update a Date's details. If it was monitoring, it is restarted automatically.
-    Booked Dates cannot be edited.
-    """
-    date_event = db.get(DateEvent, date_id)
+async def update_date(
+    date_id: int,
+    payload: DateEventUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    date_event = (
+        db.query(DateEvent)
+        .filter(DateEvent.id == date_id, DateEvent.user_id == current_user.id)
+        .first()
+    )
     if not date_event:
         raise HTTPException(status_code=404, detail="Date not found")
     if date_event.status == DateStatus.booked:
@@ -102,23 +148,23 @@ async def update_date(date_id: int, payload: DateEventUpdate, db: Session = Depe
     for field, value in payload.model_dump().items():
         setattr(date_event, field, value)
 
-    # Drop back to draft so the scheduler picks up new params cleanly
     date_event.status = DateStatus.draft
     date_event.resy_notify_id = None
     db.commit()
 
-    # Restart monitoring if it was active before the edit
     if was_monitoring:
-        try:
-            notify_id = await resy_client.set_notify(
-                venue_id=date_event.restaurant.venue_id,
-                party_size=date_event.party_size,
-                day=date_event.desired_date_start,
-            )
-            if notify_id:
-                date_event.resy_notify_id = notify_id
-        except Exception:
-            pass
+        client = await _get_notify_client(current_user)
+        if client:
+            try:
+                notify_id = await client.set_notify(
+                    venue_id=date_event.restaurant.venue_id,
+                    party_size=date_event.party_size,
+                    day=date_event.desired_date_start,
+                )
+                if notify_id:
+                    date_event.resy_notify_id = notify_id
+            except Exception:
+                pass
         date_event.status = DateStatus.monitoring
         db.commit()
 
@@ -127,22 +173,40 @@ async def update_date(date_id: int, payload: DateEventUpdate, db: Session = Depe
 
 
 @router.get("/{date_id}", response_model=DateEventOut)
-def get_date(date_id: int, db: Session = Depends(get_db)):
-    date_event = db.get(DateEvent, date_id)
+def get_date(
+    date_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    date_event = (
+        db.query(DateEvent)
+        .filter(DateEvent.id == date_id, DateEvent.user_id == current_user.id)
+        .first()
+    )
     if not date_event:
         raise HTTPException(status_code=404, detail="Date not found")
     return date_event
 
 
 @router.delete("/{date_id}", status_code=204)
-async def delete_date(date_id: int, db: Session = Depends(get_db)):
-    date_event = db.get(DateEvent, date_id)
+async def delete_date(
+    date_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    date_event = (
+        db.query(DateEvent)
+        .filter(DateEvent.id == date_id, DateEvent.user_id == current_user.id)
+        .first()
+    )
     if not date_event:
         raise HTTPException(status_code=404, detail="Date not found")
     if date_event.resy_notify_id:
-        try:
-            await resy_client.remove_notify(date_event.resy_notify_id)
-        except Exception:
-            pass
+        client = await _get_notify_client(current_user)
+        if client:
+            try:
+                await client.remove_notify(date_event.resy_notify_id)
+            except Exception:
+                pass
     db.delete(date_event)
     db.commit()

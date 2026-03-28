@@ -1,4 +1,7 @@
-import { NavLink, Route, Routes } from "react-router-dom";
+import { Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
+import LoginPage from "./pages/LoginPage";
+import SettingsPage from "./pages/SettingsPage";
 import DatesPage from "./pages/DatesPage";
 import HitlistPage from "./pages/HitlistPage";
 
@@ -20,10 +23,32 @@ const activeStyle: React.CSSProperties = {
   borderBottomColor: "#ff6b4a",
 };
 
-export default function App() {
+function ProtectedLayout() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#555",
+          fontSize: 14,
+        }}
+      >
+        Loading…
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 20px" }}>
-      {/* Header */}
       <header
         style={{
           display: "flex",
@@ -43,19 +68,15 @@ export default function App() {
           </div>
         </div>
 
-        <nav style={{ display: "flex", gap: 28 }}>
-          <NavLink
-            to="/"
-            end
-            style={({ isActive }) => (isActive ? activeStyle : navStyle)}
-          >
+        <nav style={{ display: "flex", gap: 28, alignItems: "center" }}>
+          <NavLink to="/" end style={({ isActive }) => (isActive ? activeStyle : navStyle)}>
             Dates
           </NavLink>
-          <NavLink
-            to="/hitlist"
-            style={({ isActive }) => (isActive ? activeStyle : navStyle)}
-          >
+          <NavLink to="/hitlist" style={({ isActive }) => (isActive ? activeStyle : navStyle)}>
             Hitlist
+          </NavLink>
+          <NavLink to="/settings" style={({ isActive }) => (isActive ? activeStyle : navStyle)}>
+            Settings
           </NavLink>
         </nav>
       </header>
@@ -64,8 +85,25 @@ export default function App() {
         <Routes>
           <Route path="/" element={<DatesPage />} />
           <Route path="/hitlist" element={<HitlistPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>
     </div>
   );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPageGuard />} />
+      <Route path="/*" element={<ProtectedLayout />} />
+    </Routes>
+  );
+}
+
+function LoginPageGuard() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (user) return <Navigate to="/" replace />;
+  return <LoginPage />;
 }

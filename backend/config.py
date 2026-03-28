@@ -2,12 +2,15 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    resy_email: str = ""
-    resy_password: str = ""
-    resy_api_key: str = "VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5"
     poll_interval_seconds: int = 60
     database_url: str = "sqlite:///./resy_booker.db"
     allowed_origins: str = "http://localhost:5173,http://localhost:3000"
+
+    # JWT signing secret — set a long random string in production
+    secret_key: str = "change-me-in-production"
+    # Fernet encryption key for Resy credentials at rest.
+    # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    encryption_key: str = ""
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

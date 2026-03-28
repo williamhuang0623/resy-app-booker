@@ -11,12 +11,40 @@ from sqlalchemy.orm import Session
 
 from config import settings
 from database import SessionLocal
-from models import DateEvent, DateStatus
-from services import resy_client
+from models import DateEvent, DateStatus, User
+from services import resy_client as rc
+from services.security import safe_decrypt
 
 logger = logging.getLogger(__name__)
 
 scheduler = AsyncIOScheduler()
+
+
+def _get_client_for_event(db: Session, date_event: DateEvent):
+    """
+    Build/retrieve a ResyClient for the user who owns this DateEvent.
+    Returns None if credentials are missing or the event has no user.
+    """
+    if not date_event.user_id:
+        logger.warning("Date #%d has no user_id — skipping", date_event.id)
+        return None
+
+    user: User = db.get(User, date_event.user_id)
+    if not user:
+        logger.warning("User %d not found for Date #%d — skipping", date_event.user_id, date_event.id)
+        return None
+
+    resy_email = safe_decrypt(user.resy_email_enc)
+    resy_password = safe_decrypt(user.resy_password_enc)
+    api_key = safe_decrypt(user.resy_api_key_enc) or rc._PUBLIC_API_KEY
+
+    if not resy_email or not resy_password:
+        logger.warning(
+            "User %d has no Resy credentials — skipping Date #%d", user.id, date_event.id
+        )
+        return None
+
+    return rc.get_client_for_user(user.id, resy_email, resy_password, api_key)
 
 
 async def _try_book_date(db: Session, date_event: DateEvent) -> bool:
@@ -24,6 +52,10 @@ async def _try_book_date(db: Session, date_event: DateEvent) -> bool:
     Check for availability and attempt to book a single DateEvent.
     Returns True if booking succeeded.
     """
+    client = _get_client_for_event(db, date_event)
+    if not client:
+        return False
+
     restaurant = date_event.restaurant
     logger.info(
         "Polling %s (Date #%d) for %s–%s, %s–%s, party=%d",
@@ -36,7 +68,7 @@ async def _try_book_date(db: Session, date_event: DateEvent) -> bool:
         date_event.party_size,
     )
 
-    slots = await resy_client.find_slots_in_range(
+    slots = await client.find_slots_in_range(
         venue_id=restaurant.venue_id,
         date_start=date_event.desired_date_start,
         date_end=date_event.desired_date_end,
@@ -49,7 +81,6 @@ async def _try_book_date(db: Session, date_event: DateEvent) -> bool:
         logger.debug("No slots found for Date #%d", date_event.id)
         return False
 
-    # Pick the earliest available slot
     slots.sort(key=lambda s: s["time_slot"])
     chosen = slots[0]
     logger.info(
@@ -60,7 +91,7 @@ async def _try_book_date(db: Session, date_event: DateEvent) -> bool:
     )
 
     day = chosen["date"]
-    booking = await resy_client.book_slot(
+    booking = await client.book_slot(
         config_id=chosen["config_id"],
         day=day,
         party_size=date_event.party_size,
@@ -70,7 +101,6 @@ async def _try_book_date(db: Session, date_event: DateEvent) -> bool:
         logger.warning("Booking attempt failed for Date #%d", date_event.id)
         return False
 
-    # Mark the date as booked
     date_event.status = DateStatus.booked
     date_event.reservation_id = str(
         booking.get("reservation_id") or booking.get("resy_token") or ""
@@ -78,12 +108,13 @@ async def _try_book_date(db: Session, date_event: DateEvent) -> bool:
     date_event.booked_slot = chosen["time_slot"]
     date_event.booked_at = datetime.now(timezone.utc)
 
-    # One-and-done: cancel every other monitoring Date
+    # One-and-done: cancel every other monitoring Date for the same user
     if date_event.one_and_done:
         others = (
             db.query(DateEvent)
             .filter(
                 DateEvent.status == DateStatus.monitoring,
+                DateEvent.user_id == date_event.user_id,
                 DateEvent.id != date_event.id,
             )
             .all()
@@ -125,7 +156,6 @@ async def poll_and_book():
         today = datetime.now(timezone.utc).date().isoformat()
 
         for date_event in monitoring:
-            # If the entire desired window is in the past, mark as failed
             if date_event.desired_date_end < today:
                 date_event.status = DateStatus.failed
                 db.commit()
@@ -159,9 +189,7 @@ def start_scheduler():
         replace_existing=True,
     )
     scheduler.start()
-    logger.info(
-        "Scheduler started — polling every %ds", settings.poll_interval_seconds
-    )
+    logger.info("Scheduler started — polling every %ds", settings.poll_interval_seconds)
 
 
 def stop_scheduler():

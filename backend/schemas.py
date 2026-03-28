@@ -99,9 +99,41 @@ class SlotResult(BaseModel):
     type: str
 
 
-# ── Auth status ───────────────────────────────────────────────────────────────
+# ── Auth status (Resy session) ────────────────────────────────────────────────
 
 class AuthStatus(BaseModel):
     authenticated: bool
     email: Optional[str] = None
     payment_method_count: int = 0
+
+
+# ── App user auth ─────────────────────────────────────────────────────────────
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class ResyCredentialsIn(BaseModel):
+    resy_email: str
+    resy_password: str
+    resy_api_key: str = "VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5"
+
+
+class UserOut(BaseModel):
+    id: int
+    email: str
+    has_resy_credentials: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

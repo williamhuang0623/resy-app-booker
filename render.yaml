@@ -11,16 +11,14 @@ services:
         fromDatabase:
           name: resy-booker-db
           property: connectionString
-      - key: RESY_EMAIL
-        sync: false          # set manually in Render dashboard
-      - key: RESY_PASSWORD
-        sync: false          # set manually in Render dashboard
-      - key: RESY_API_KEY
-        value: VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5
+      - key: SECRET_KEY
+        generateValue: true   # Render auto-generates a secure random value
+      - key: ENCRYPTION_KEY
+        sync: false           # Generate and paste manually (see instructions below)
       - key: POLL_INTERVAL_SECONDS
         value: 60
       - key: ALLOWED_ORIGINS
-        sync: false          # set to your Vercel URL, e.g. https://your-app.vercel.app
+        sync: false           # set to your Vercel URL, e.g. https://your-app.vercel.app
 
 databases:
   - name: resy-booker-db
