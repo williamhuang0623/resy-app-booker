@@ -91,7 +91,7 @@ async def search_venues(query: str, lat: float = 40.7128, lon: float = -74.0060)
             data={
                 "struct_data": json.dumps({
                     "query": query,
-                    "geo": {"lat": lat, "long": lon},
+                    "geo": {"lat": lat, "lng": lon},
                     "per_page": 10,
                 }),
             },
