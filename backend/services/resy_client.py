@@ -8,7 +8,7 @@ Uses Resy's unofficial API. All endpoints are HTTPS and require:
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 
@@ -29,7 +29,7 @@ RESY_HEADERS = {
 @dataclass
 class ResyAuthState:
     token: str = ""
-    payment_method_id: int | None = None
+    payment_method_id: Optional[int] = None
     email: str = ""
     _payment_methods: list[dict] = field(default_factory=list)
 
@@ -204,7 +204,7 @@ async def find_slots_in_range(
 
 # ── Booking ───────────────────────────────────────────────────────────────────
 
-async def get_booking_token(config_id: str, day: str, party_size: int) -> str | None:
+async def get_booking_token(config_id: str, day: str, party_size: int) -> Optional[str]:
     """Get a book_token for a specific slot (needed to complete booking)."""
     auth = await ensure_authenticated()
     if not auth.is_authenticated:
@@ -230,7 +230,7 @@ async def get_booking_token(config_id: str, day: str, party_size: int) -> str | 
     return data.get("book_token", {}).get("value")
 
 
-async def book_slot(config_id: str, day: str, party_size: int) -> dict | None:
+async def book_slot(config_id: str, day: str, party_size: int) -> Optional[dict]:
     """
     Book a slot. Returns booking confirmation data or None on failure.
     """
@@ -265,7 +265,7 @@ async def book_slot(config_id: str, day: str, party_size: int) -> dict | None:
 
 # ── Resy Notify ───────────────────────────────────────────────────────────────
 
-async def set_notify(venue_id: str, party_size: int, day: str) -> str | None:
+async def set_notify(venue_id: str, party_size: int, day: str) -> Optional[str]:
     """
     Register Resy's native notify for a venue/date/party_size.
     Returns the notify ID or None.

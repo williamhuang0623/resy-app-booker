@@ -1,5 +1,6 @@
 import enum
 from datetime import datetime
+from typing import List, Optional
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -26,7 +27,7 @@ class HitlistRestaurant(Base):
     resy_url_token: Mapped[str] = mapped_column(String, default="")
     added_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    dates: Mapped[list["DateEvent"]] = relationship(
+    dates: Mapped[List["DateEvent"]] = relationship(
         "DateEvent", back_populates="restaurant", cascade="all, delete-orphan"
     )
 
@@ -49,12 +50,12 @@ class DateEvent(Base):
     )
 
     # Set after successful booking
-    reservation_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    booked_slot: Mapped[str | None] = mapped_column(String, nullable=True)  # ISO datetime
-    booked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    reservation_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    booked_slot: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # ISO datetime
+    booked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Optional Resy notify token (from Resy's built-in notify feature)
-    resy_notify_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    resy_notify_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     notes: Mapped[str] = mapped_column(String, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

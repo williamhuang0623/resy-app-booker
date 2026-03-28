@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -49,10 +50,10 @@ class DateEventOut(BaseModel):
     desired_time_end: str
     party_size: int
     status: DateStatus
-    reservation_id: str | None
-    booked_slot: str | None
-    booked_at: datetime | None
-    resy_notify_id: str | None
+    reservation_id: Optional[str]
+    booked_slot: Optional[str]
+    booked_at: Optional[datetime]
+    resy_notify_id: Optional[str]
     notes: str
     created_at: datetime
 
@@ -83,5 +84,5 @@ class SlotResult(BaseModel):
 
 class AuthStatus(BaseModel):
     authenticated: bool
-    email: str | None = None
+    email: Optional[str] = None
     payment_method_count: int = 0
