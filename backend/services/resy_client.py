@@ -91,7 +91,7 @@ async def search_venues(query: str) -> list[dict]:
             data={
                 "struct_data": json.dumps({
                     "query": query,
-                    "per_page": 10,
+                    "per_page": 20,
                 }),
             },
         )
