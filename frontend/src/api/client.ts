@@ -59,10 +59,6 @@ export const datesApi = {
 // ── Restaurants ───────────────────────────────────────────────────────────────
 
 export const restaurantsApi = {
-  search: (q: string, lat?: number, lon?: number) => {
-    const params = new URLSearchParams({ q });
-    if (lat !== undefined) params.set("lat", String(lat));
-    if (lon !== undefined) params.set("lon", String(lon));
-    return request<VenueResult[]>(`/restaurants/search?${params}`);
-  },
+  search: (q: string) =>
+    request<VenueResult[]>(`/restaurants/search?q=${encodeURIComponent(q)}`),
 };

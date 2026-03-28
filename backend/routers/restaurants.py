@@ -9,12 +9,10 @@ router = APIRouter(prefix="/restaurants", tags=["restaurants"])
 @router.get("/search", response_model=list[VenueResult])
 async def search_restaurants(
     q: str = Query(..., description="Restaurant name to search"),
-    lat: float = Query(40.7128, description="Latitude (default: NYC)"),
-    lon: float = Query(-74.0060, description="Longitude (default: NYC)"),
 ):
     """Search Resy for venues matching the query."""
     try:
-        results = await resy_client.search_venues(q, lat=lat, lon=lon)
+        results = await resy_client.search_venues(q)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Resy search failed: {exc}") from exc
     return results
