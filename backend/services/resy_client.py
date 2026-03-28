@@ -6,6 +6,7 @@ Uses Resy's unofficial API. All endpoints are HTTPS and require:
   - X-Resy-Auth-Token: <user token> (for authenticated requests)
 """
 
+import json
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -84,12 +85,11 @@ async def ensure_authenticated() -> ResyAuthState:
 async def search_venues(query: str, lat: float = 40.7128, lon: float = -74.0060) -> list[dict]:
     """Search Resy venues by name. Defaults to NYC coordinates."""
     async with httpx.AsyncClient() as client:
-        import json as _json
         resp = await client.post(
             f"{RESY_BASE}/3/venuesearch/search",
             headers=RESY_HEADERS,
             data={
-                "struct_data": _json.dumps({
+                "struct_data": json.dumps({
                     "query": query,
                     "geo": {"lat": lat, "long": lon},
                     "per_page": 10,
