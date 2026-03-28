@@ -222,7 +222,7 @@ async def get_booking_token(config_id: str, day: str, party_size: int) -> Option
                 "party_size": party_size,
             },
         )
-        if resp.status_code != 200:
+        if resp.status_code not in (200, 201):
             logger.warning("details endpoint returned %s", resp.status_code)
             return None
         data = resp.json()
