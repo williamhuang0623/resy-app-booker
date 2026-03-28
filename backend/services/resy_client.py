@@ -98,6 +98,7 @@ async def search_venues(query: str) -> list[dict]:
         resp.raise_for_status()
         data = resp.json()
 
+    logger.info("Resy search raw response: %s", data)
     hits: list[dict[str, Any]] = data.get("search", {}).get("hits", [])
     results = []
     for hit in hits:
