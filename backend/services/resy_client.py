@@ -91,9 +91,26 @@ class ResyClient:
         return True
 
     async def ensure_authenticated(self) -> bool:
-        if not self.is_authenticated:
-            return await self.login()
-        return True
+        if self.is_authenticated:
+            return True
+        # Find this client's user_id to check failure count
+        user_id = next(
+            (uid for uid, c in _user_clients.items() if c is self), None
+        )
+        if user_id is not None:
+            failures = _login_failures.get(user_id, 0)
+            if failures >= _MAX_LOGIN_FAILURES:
+                logger.warning(
+                    "Skipping Resy login for %s — %d consecutive failures. "
+                    "Re-save credentials in Settings to reset.",
+                    self.resy_email,
+                    failures,
+                )
+                return False
+        success = await self.login()
+        if user_id is not None:
+            _login_failures[user_id] = 0 if success else _login_failures.get(user_id, 0) + 1
+        return success
 
     # ── Slot Discovery ────────────────────────────────────────────────────────
 
@@ -289,6 +306,9 @@ async def search_venues(query: str, page: int = 1) -> dict:
 # ── In-memory per-user client cache ──────────────────────────────────────────
 
 _user_clients: dict[int, ResyClient] = {}
+# Track consecutive login failures per user to avoid hammering Resy
+_login_failures: dict[int, int] = {}
+_MAX_LOGIN_FAILURES = 3
 
 
 def get_client_for_user(
@@ -301,6 +321,8 @@ def get_client_for_user(
     existing = _user_clients.get(user_id)
     if existing and existing.resy_email == resy_email:
         return existing
+    # Credentials changed — reset failure count and create fresh client
+    _login_failures[user_id] = 0
     client = ResyClient(resy_email, resy_password, api_key)
     _user_clients[user_id] = client
     return client
