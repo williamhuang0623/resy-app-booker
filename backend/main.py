@@ -45,3 +45,8 @@ async def shutdown():
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/hello")
+def hello():
+    return {"status": "ok"}
