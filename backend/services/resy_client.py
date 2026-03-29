@@ -79,7 +79,15 @@ class ResyClient:
         if self._payment_methods:
             self._payment_method_id = self._payment_methods[0].get("id")
 
-        logger.info("Resy login OK for %s", self.resy_email)
+        if not self._auth_token:
+            logger.error("Resy login returned no token for %s", self.resy_email)
+            return False
+
+        logger.info(
+            "Resy login OK for %s (payment methods: %d)",
+            self.resy_email,
+            len(self._payment_methods),
+        )
         return True
 
     async def ensure_authenticated(self) -> bool:
@@ -165,7 +173,8 @@ class ResyClient:
     # ── Booking ───────────────────────────────────────────────────────────────
 
     async def get_booking_token(self, config_id: str, day: str, party_size: int) -> Optional[str]:
-        if not self.is_authenticated:
+        if not await self.ensure_authenticated():
+            logger.error("Cannot get booking token: login failed for %s", self.resy_email)
             return None
         async with httpx.AsyncClient() as client:
             resp = await client.post(
@@ -180,8 +189,8 @@ class ResyClient:
         return data.get("book_token", {}).get("value")
 
     async def book_slot(self, config_id: str, day: str, party_size: int) -> Optional[dict]:
-        if not self.is_authenticated:
-            logger.error("Cannot book: not authenticated (%s)", self.resy_email)
+        if not await self.ensure_authenticated():
+            logger.error("Cannot book: Resy login failed for %s", self.resy_email)
             return None
         if not self._payment_method_id:
             logger.error("Cannot book: no payment method (%s)", self.resy_email)
